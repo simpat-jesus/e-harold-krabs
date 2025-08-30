@@ -1,6 +1,6 @@
 import pytest
-from services.pdf_parser import parse_pdf
-from services.csv_parser import parse_csv
+from app.services.pdf_parser import parse_pdf
+from app.services.csv_parser import parse_csv
 import io
 
 def test_pdf_parser_mock():

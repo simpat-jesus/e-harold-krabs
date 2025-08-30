@@ -1,8 +1,32 @@
 import pytest
-from unittest.mock import Mock, patch
-from db.models import Transaction
-from db.crud import insert_transaction
+from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+import sys
+import os
+
+# Add the project root to the Python path for testing
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Mock all database-related modules before importing anything from app
+mock_engine = MagicMock()
+mock_session_local = MagicMock()
+mock_base = MagicMock()
+
+with patch.dict('sys.modules', {
+    'sqlalchemy': MagicMock(),
+    'sqlalchemy.ext': MagicMock(),
+    'sqlalchemy.ext.declarative': MagicMock(),
+    'sqlalchemy.orm': MagicMock(),
+    'psycopg2': MagicMock(),
+}):
+    with patch('app.config.create_engine', return_value=mock_engine), \
+         patch('app.config.SessionLocal', return_value=mock_session_local), \
+         patch('app.config.Base', mock_base), \
+         patch('app.db.models.Base', mock_base), \
+         patch('app.db.models.Column'), \
+         patch('app.main.Base.metadata.create_all'):
+        from app.db.models import Transaction
+        from app.db.crud import insert_transaction
 
 def test_transaction_model_creation():
     """Test Transaction model can be created with proper attributes"""
@@ -86,7 +110,7 @@ def test_insert_transaction_missing_optional_fields():
 
 def test_get_db_dependency():
     """Test get_db dependency function structure"""
-    from db.crud import get_db
+    from app.db.crud import get_db
 
     # get_db is a generator function that yields a database session
     # In FastAPI, this would be used as a dependency

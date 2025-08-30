@@ -24,9 +24,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Set up Python path
+      run: |
+        echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
+
     - name: Run tests
       run: |
         python -m pytest tests/ -v --tb=short
+      working-directory: .
 
     - name: Lint with flake8
       run: |

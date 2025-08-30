@@ -1,5 +1,5 @@
 import pytest
-from services.insights import get_summary, get_categories, get_monthly_trends
+from app.services.insights import get_summary, get_categories, get_monthly_trends
 from unittest.mock import Mock
 
 def test_get_summary_empty():
