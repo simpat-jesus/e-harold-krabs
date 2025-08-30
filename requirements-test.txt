@@ -1,0 +1,29 @@
+# Core dependencies (always needed)
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+sqlalchemy
+python-dotenv
+
+# Testing dependencies
+pytest
+httpx
+
+# Data processing (core functionality)
+pandas
+openpyxl
+python-dateutil
+
+# AI Integration (optional for testing)
+openai
+
+# Dashboard (mocked in tests)
+streamlit
+
+# Utilities
+loguru
+pyyaml
+
+# Note: pdfplumber and cryptography are excluded due to compatibility issues
+# Use mock implementations in tests instead

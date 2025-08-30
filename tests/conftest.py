@@ -39,20 +39,29 @@ def mock_db_session():
 @pytest.fixture(autouse=True)
 def mock_database():
     """Mock database connections and operations for all tests"""
-    with patch('app.config.create_engine'), \
-         patch('app.config.SessionLocal'), \
-         patch('app.config.Base'), \
-         patch('app.main.Base.metadata.create_all'), \
-         patch('app.db.models.Base'), \
-         patch('app.db.models.Column'), \
-         patch('app.db.models.Integer'), \
-         patch('app.db.models.String'), \
-         patch('app.db.models.Float'), \
-         patch('app.db.models.Date'), \
-         patch('app.db.models.JSON'), \
-         patch('app.db.crud.Transaction') as mock_transaction_class:
-        # Create a proper mock for the Transaction class
-        mock_transaction = Mock()
-        mock_transaction.__tablename__ = "transactions"
-        mock_transaction_class.return_value = mock_transaction
-        yield
+    with patch.dict('sys.modules', {
+        'sqlalchemy': Mock(),
+        'sqlalchemy.ext': Mock(),
+        'sqlalchemy.ext.declarative': Mock(),
+        'sqlalchemy.orm': Mock(),
+        'psycopg2': Mock(),
+    }):
+        with patch('sqlalchemy.create_engine'), \
+             patch('sqlalchemy.orm.sessionmaker'), \
+             patch('sqlalchemy.orm.declarative_base'), \
+             patch('app.config.Base'), \
+             patch('app.config.engine'), \
+             patch('app.config.SessionLocal'), \
+             patch('app.db.models.Base'), \
+             patch('app.db.models.Column'), \
+             patch('app.db.models.Integer'), \
+             patch('app.db.models.String'), \
+             patch('app.db.models.Float'), \
+             patch('app.db.models.Date'), \
+             patch('app.db.models.JSON'), \
+             patch('app.db.crud.Transaction') as mock_transaction_class:
+            # Create a proper mock for the Transaction class
+            mock_transaction = Mock()
+            mock_transaction.__tablename__ = "transactions"
+            mock_transaction_class.return_value = mock_transaction
+            yield

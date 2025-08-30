@@ -112,11 +112,6 @@ cd e-harold-krabs
 ./run.sh
 ```
 
-Or for Windows PowerShell:
-```powershell
-.\run.ps1
-```
-
 This will:
 - Create a virtual environment
 - Install all dependencies

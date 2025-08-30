@@ -2,13 +2,43 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, cd-cd-features ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, cd-cd-features ]
 
 jobs:
-  # Docker-based test
-  test:
+  # Unit tests job - fast, isolated tests
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run unit tests
+      run: |
+        chmod +x run-unit-tests.sh
+        ./run-unit-tests.sh
+
+  # Docker-based integration test
+  integration-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +63,7 @@ jobs:
       run: |
         docker compose build --build-arg BUILDKIT_INLINE_CACHE=1
 
-    - name: Run tests in Docker
+    - name: Run integration tests in Docker
       run: |
         docker compose run --rm -v $(pwd)/tests:/app/tests api pytest tests/ -v --tb=short
 
