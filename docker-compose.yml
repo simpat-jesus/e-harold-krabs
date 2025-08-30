@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    container_name: finance_db
+    restart: always
+    environment:
+      POSTGRES_USER: finance_user
+      POSTGRES_PASSWORD: finance_pass
+      POSTGRES_DB: finance
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+    container_name: finance_api
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: ./dashboard/Dockerfile
+    container_name: finance_dashboard
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./dashboard:/dashboard
+
+volumes:
+  db_data:

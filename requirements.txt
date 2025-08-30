@@ -1,0 +1,35 @@
+# Core
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+sqlalchemy
+psycopg2-binary
+python-dotenv
+
+# Parsing
+pdfplumber
+pandas
+openpyxl          # for Excel export
+python-dateutil
+
+# AI Integration
+openai
+ollama            # wrapper client (optional, if running locally)
+
+# Forecasting / Analysis
+prophet           # or: cmdstanpy
+statsmodels
+scikit-learn
+
+# Dashboard
+streamlit
+matplotlib
+plotly
+
+# Utilities
+loguru
+
+# Testing
+pytest
+httpx
