@@ -103,4 +103,4 @@ class TestDashboardLogic:
         assert isinstance(valid_data["transactions"], int)
 
         # Test business logic
-        assert valid_data["balance"] == valid_data["total_income"] - abs(valid_data["total_expenses"])
+        assert valid_data["balance"] == valid_data["total_income"] - valid_data["total_expenses"]

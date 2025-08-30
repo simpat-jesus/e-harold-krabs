@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, cd-cd-features ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, cd-cd-features ]
+    branches: [ main ]
 
 jobs:
   # Unit tests job - fast, isolated tests

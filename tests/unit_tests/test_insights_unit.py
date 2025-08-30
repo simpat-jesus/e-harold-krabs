@@ -57,8 +57,8 @@ class TestInsightsUnit:
         """Test handling of empty transaction list"""
         transactions = []
 
-        total_income = sum(t.amount for t in transactions if hasattr(t, 'amount') and t.amount > 0)
-        total_expenses = sum(t.amount for t in transactions if hasattr(t, 'amount') and t.amount < 0)
+        total_income = sum(t.amount for t in transactions if t.amount > 0)
+        total_expenses = sum(t.amount for t in transactions if t.amount < 0)
         balance = total_income + total_expenses
         count = len(transactions)
 
