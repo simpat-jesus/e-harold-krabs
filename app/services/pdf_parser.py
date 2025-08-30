@@ -1,16 +1,200 @@
 import pdfplumber
 import io
+import json
+import os
+import logging
+from typing import List, Dict, Any
+from openai import AzureOpenAI
+from datetime import datetime
 
-def parse_pdf(content):
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def parse_pdf(content) -> List[Dict[str, Any]]:
+    """
+    Parse PDF content and extract transactions using Azure AI
+
+    Args:
+        content: PDF file content as bytes
+
+    Returns:
+        List of transaction dictionaries
+    """
+    logger.info("Starting PDF parsing process")
+
+    # Extract text from PDF
     with pdfplumber.open(io.BytesIO(content)) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
 
-    # TODO: call AI parser (Ollama/OpenAI) to turn text -> structured JSON
-    # For now, mock with one example transaction
-    return [{
-        "date": "2025-08-01",
-        "description": "Mock Transaction from PDF",
-        "amount": -123.45,
-        "category": "Uncategorized",
-        "payment_method": "Credit Card"
-    }]
+    if not text.strip():
+        logger.warning("No text content found in PDF")
+        return []
+
+    logger.info(f"Extracted {len(text)} characters from PDF")
+
+    # Use Azure AI to extract transactions directly from raw text
+    try:
+        transactions = extract_transactions_with_ai(text)
+        logger.info(f"Successfully extracted {len(transactions)} transactions from PDF")
+        return transactions
+    except Exception as e:
+        logger.error(f"AI parsing failed: {e}")
+        # Fallback to mock data if AI fails
+        return [{
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "description": "AI Parsing Failed - Fallback Transaction",
+            "amount": -123.45,
+            "category": "Uncategorized"
+        }]
+
+def extract_transactions_with_ai(text: str) -> List[Dict[str, Any]]:
+    """
+    Use Azure AI to extract transactions from PDF text
+
+    Args:
+        text: Extracted text from PDF
+
+    Returns:
+        List of transaction dictionaries
+    """
+    logger.info("Starting Azure AI transaction extraction")
+
+    # Initialize Azure OpenAI client
+    client = AzureOpenAI(
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+    )
+
+    # Create the prompt for transaction extraction
+    prompt = create_transaction_extraction_prompt(text)
+
+    # Make the API call
+    deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4")
+    logger.info(f"Making Azure AI API call with deployment: {deployment_name}")
+
+    response = client.chat.completions.create(
+        model=deployment_name,
+        messages=[
+            {
+                "role": "system",
+                "content": "Extract transactions from credit card statements. Return JSON array with date, description, amount, category."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        max_tokens=2000,
+        temperature=0.1  # Low temperature for consistent parsing
+    )
+
+    # Parse the response
+    ai_response = response.choices[0].message.content.strip()
+    logger.info(f"Received AI response of {len(ai_response)} characters")
+
+    # Try to extract JSON from the response
+    try:
+        # Look for JSON array in the response
+        json_start = ai_response.find('[')
+        json_end = ai_response.rfind(']') + 1
+
+        if json_start != -1 and json_end != -1:
+            json_content = ai_response[json_start:json_end]
+            transactions = json.loads(json_content)
+
+            # Validate and clean the transactions
+            cleaned_transactions = validate_and_clean_transactions(transactions)
+            logger.info(f"Successfully processed {len(cleaned_transactions)} transactions")
+            return cleaned_transactions
+        else:
+            logger.warning("No JSON array found in AI response")
+            return []
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI response as JSON: {e}")
+        logger.debug(f"AI Response content: {ai_response}")
+        return []
+
+def create_transaction_extraction_prompt(text: str) -> str:
+    """
+    Create a simple prompt for transaction extraction
+
+    Args:
+        text: PDF text content
+
+    Returns:
+        Simple prompt for AI
+    """
+    return f"""Extract all transactions from this credit card statement.
+
+Return as JSON array:
+[
+  {{
+    "date": "YYYY-MM-DD",
+    "description": "merchant name",
+    "amount": -123.45,
+    "category": "Groceries|Restaurants|Shopping|Transportation|Medical|Bills|Other"
+  }}
+]
+
+Text:
+{text[:4000]}
+"""
+
+def validate_and_clean_transactions(transactions: List[Dict]) -> List[Dict[str, Any]]:
+    """
+    Validate and clean extracted transactions
+
+    Args:
+        transactions: Raw transactions from AI
+
+    Returns:
+        Cleaned and validated transactions
+    """
+    logger.info(f"Validating and cleaning {len(transactions)} transactions")
+    cleaned_transactions = []
+
+    for tx in transactions:
+        try:
+            # Basic validation
+            if not isinstance(tx, dict) or 'date' not in tx or 'description' not in tx or 'amount' not in tx:
+                continue
+
+            # Clean date
+            date_str = str(tx['date']).strip()
+            if not date_str:
+                date_str = datetime.now().strftime("%Y-%m-%d")
+
+            # Clean description
+            description = str(tx['description']).strip()
+            if not description:
+                description = "Transaction"
+
+            # Clean amount
+            try:
+                amount = float(tx['amount'])
+            except (ValueError, TypeError):
+                amount = 0.0
+
+            # Clean category
+            category = str(tx.get('category', 'Other')).strip()
+            if not category:
+                category = 'Other'
+
+            cleaned_tx = {
+                "date": date_str,
+                "description": description,
+                "amount": amount,
+                "category": category
+            }
+
+            cleaned_transactions.append(cleaned_tx)
+
+        except Exception as e:
+            logger.warning(f"Skipping invalid transaction: {e}")
+            continue
+
+    logger.info(f"Validation complete. Kept {len(cleaned_transactions)} of {len(transactions)} transactions")
+    return cleaned_transactions

@@ -8,7 +8,6 @@ def insert_transaction(db: Session, tx: dict):
         description=tx["description"],
         amount=tx["amount"],
         category=tx.get("category"),
-        payment_method=tx.get("payment_method"),
         raw_data=tx,
     )
     db.add(transaction)

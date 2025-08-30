@@ -15,6 +15,7 @@ python-dateutil
 
 # AI Integration
 openai
+azure-identity
 ollama            # wrapper client (optional, if running locally)
 
 # Forecasting / Analysis
@@ -33,3 +34,6 @@ loguru
 # Testing
 pytest
 httpx
+
+# Rate Limiting
+slowapi
