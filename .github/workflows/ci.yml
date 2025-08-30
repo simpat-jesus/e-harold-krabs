@@ -35,7 +35,7 @@ jobs:
 
     - name: Run tests in Docker
       run: |
-        docker compose run --rm api pytest tests/ -v --tb=short
+        docker compose run --rm -v $(pwd)/tests:/app/tests api pytest tests/ -v --tb=short
 
     - name: Test Docker Compose integration
       run: |
