@@ -10,7 +10,6 @@ def parse_csv(content):
             "description": row["description"],
             "amount": float(row["amount"]),
             "category": row.get("category", None),
-            "payment_method": row.get("payment_method", None),
         }
         transactions.append(tx)
     return transactions

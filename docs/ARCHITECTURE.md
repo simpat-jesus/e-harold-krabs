@@ -26,7 +26,6 @@ erDiagram
         string description
         float amount
         string category
-        string payment_method
         jsonb raw_data
         timestamp created_at
     }
