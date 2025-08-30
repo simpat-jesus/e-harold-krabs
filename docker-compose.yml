@@ -7,10 +7,16 @@ services:
       POSTGRES_USER: finance_user
       POSTGRES_PASSWORD: finance_pass
       POSTGRES_DB: finance
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_user -d finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -21,11 +27,18 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - ./app:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost', 8000)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   dashboard:
     build:
@@ -34,7 +47,8 @@ services:
     container_name: finance_dashboard
     restart: always
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "8501:8501"
     volumes:

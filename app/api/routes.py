@@ -1,7 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from db.crud import insert_transaction, get_db
 from db.models import Transaction
 from services.csv_parser import parse_csv
@@ -15,11 +13,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-limiter = Limiter(key_func=get_remote_address)
-
 @router.post("/upload-csv")
-@limiter.limit("10/minute")
-async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_csv(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
     logger.info(f"CSV upload request received: {file.filename}, size: {file.size} bytes")
     try:
         content = await file.read()
@@ -37,8 +32,7 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         return {"error": f"Failed to process CSV: {str(e)}"}
 
 @router.post("/upload-pdf")
-@limiter.limit("5/minute")
-async def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_pdf(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
     logger.info(f"PDF upload request received: {file.filename}, size: {file.size} bytes")
     try:
         content = await file.read()
@@ -58,32 +52,28 @@ async def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
         return {"error": f"Failed to process PDF: {str(e)}"}
 
 @router.get("/insights/summary")
-@limiter.limit("20/minute")
-def insights_summary(db: Session = Depends(get_db)):
+async def insights_summary(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights summary")
     result = get_summary(db)
     logger.info(f"Summary generated: {len(result)} items")
     return result
 
 @router.get("/insights/categories")
-@limiter.limit("20/minute")
-def insights_categories(db: Session = Depends(get_db)):
+async def insights_categories(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights categories")
     result = get_categories(db)
     logger.info(f"Categories generated: {len(result)} items")
     return result
 
 @router.get("/insights/monthly")
-@limiter.limit("20/minute")
-def insights_monthly(db: Session = Depends(get_db)):
+async def insights_monthly(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights monthly trends")
     result = get_monthly_trends(db)
     logger.info(f"Monthly trends generated: {len(result)} items")
     return result
 
 @router.get("/export/csv")
-@limiter.limit("10/minute")
-def export_csv(db: Session = Depends(get_db)):
+async def export_csv(request: Request, db: Session = Depends(get_db)):
     results = db.query(Transaction).all()
     if not results:
         raise HTTPException(status_code=404, detail="No transactions to export")
