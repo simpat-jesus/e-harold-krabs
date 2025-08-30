@@ -29,6 +29,7 @@ plotly
 
 # Utilities
 loguru
+pyyaml
 
 # Testing
 pytest
