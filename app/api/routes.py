@@ -10,10 +10,42 @@ import pandas as pd
 from io import StringIO, BytesIO
 from fastapi.responses import StreamingResponse
 import logging
+from functools import lru_cache
+import time
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Simple cache for insights data
+_insights_cache = {}
+_cache_timestamp = 0
+CACHE_DURATION = 300  # 5 minutes
+
+def _get_cached_or_compute(cache_key, compute_func, db):
+    """Get data from cache or compute it fresh if cache is stale."""
+    global _insights_cache, _cache_timestamp
+    
+    current_time = time.time()
+    
+    # Check if cache is still valid
+    if current_time - _cache_timestamp < CACHE_DURATION and cache_key in _insights_cache:
+        return _insights_cache[cache_key]
+    
+    # Compute fresh data
+    result = compute_func(db)
+    
+    # Update cache
+    _insights_cache[cache_key] = result
+    _cache_timestamp = current_time
+    
+    return result
+
+def _invalidate_cache():
+    """Invalidate the insights cache when new data is added."""
+    global _insights_cache, _cache_timestamp
+    _insights_cache.clear()
+    _cache_timestamp = 0
 
 @router.post("/upload-csv")
 async def upload_csv(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -24,6 +56,7 @@ async def upload_csv(request: Request, file: UploadFile = File(...), db: Session
         logger.info(f"CSV parsing complete, extracted {len(transactions)} transactions")
 
         inserted_count = insert_transactions_batch(db, transactions)
+        _invalidate_cache()  # Invalidate cache when new data is added
         logger.info(f"Successfully inserted {inserted_count} transactions into database (duplicates skipped)")
         return {"inserted": inserted_count}
     except Exception as e:
@@ -47,6 +80,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...), db: Session
         logger.info(f"AI parsing complete, extracted {len(transactions)} transactions")
 
         inserted_count = insert_transactions_batch(db, transactions)
+        _invalidate_cache()  # Invalidate cache when new data is added
         logger.info(f"Successfully inserted {inserted_count} transactions into database (duplicates skipped)")
         return {"message": "PDF processed", "transactions": inserted_count}
     except Exception as e:
@@ -56,21 +90,21 @@ async def upload_pdf(request: Request, file: UploadFile = File(...), db: Session
 @router.get("/insights/summary")
 async def insights_summary(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights summary")
-    result = get_summary(db)
+    result = _get_cached_or_compute("summary", get_summary, db)
     logger.info(f"Summary generated: {len(result)} items")
     return result
 
 @router.get("/insights/categories")
 async def insights_categories(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights categories")
-    result = get_categories(db)
+    result = _get_cached_or_compute("categories", get_categories, db)
     logger.info(f"Categories generated: {len(result)} items")
     return result
 
 @router.get("/insights/monthly")
 async def insights_monthly(request: Request, db: Session = Depends(get_db)):
     logger.info("Request for insights monthly trends")
-    result = get_monthly_trends(db)
+    result = _get_cached_or_compute("monthly", get_monthly_trends, db)
     logger.info(f"Monthly trends generated: {len(result)} items")
     return result
 
