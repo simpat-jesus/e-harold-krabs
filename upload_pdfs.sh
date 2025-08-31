@@ -14,7 +14,7 @@ until curl -f http://localhost:8000/docs > /dev/null 2>&1; do
     sleep 5
 done
 
-echo "API is ready. Uploading PDFs at rate of 2 per minute..."
+echo "API is ready. Uploading PDFs sequentially..."
 
 # Get all PDF files
 pdf_files=()
@@ -27,24 +27,39 @@ done
 total_files=${#pdf_files[@]}
 echo "Found $total_files PDF files to upload"
 
-# Upload in batches of 2 files per minute
-batch_size=2
-for ((i=0; i<total_files; i+=batch_size)); do
-    echo "Processing batch $((i/batch_size + 1))..."
-    
-    # Upload up to 2 files in this batch
-    for ((j=0; j<batch_size && i+j<total_files; j++)); do
-        pdf="${pdf_files[i+j]}"
-        echo "Uploading $pdf..."
-        curl -X POST -F "file=@$pdf" http://localhost:8000/upload-pdf
-        echo "Completed upload of $pdf"
-    done
-    
-    # Wait 60 seconds before next batch (unless it's the last batch)
-    if ((i + batch_size < total_files)); then
-        echo "Waiting 60 seconds before next batch..."
-        sleep 60
+if [ $total_files -eq 0 ]; then
+    echo "No PDF files found in 'test data' directory. Exiting."
+    exit 1
+fi
+
+# Upload files sequentially, one at a time
+for ((i=0; i<total_files; i++)); do
+    pdf="${pdf_files[i]}"
+    echo "Uploading $pdf... ($((i+1))/$total_files)"
+
+    # Upload the file and capture both response and HTTP code
+    # Use proper quoting for file paths with spaces
+    response=$(curl -s --max-time 300 -w "\n%{http_code}" -X POST -F "file=@\"$pdf\"" http://localhost:8000/upload-pdf 2>/dev/null)
+    curl_exit_code=$?
+
+    if [ $curl_exit_code -ne 0 ]; then
+        echo "✗ Failed to upload $pdf (curl error: $curl_exit_code)"
+        continue
+    fi
+
+    # Extract response body and HTTP code safely
+    response_body=$(echo "$response" | sed '$d')
+    http_code=$(echo "$response" | tail -n 1)
+
+    if [ "$http_code" -eq 200 ]; then
+        echo "✓ Successfully uploaded $pdf"
+        # Optional: Add a small delay between uploads to be gentle on the server
+        sleep 2
+    else
+        echo "✗ Failed to upload $pdf (HTTP $http_code)"
+        echo "Response: $response_body"
+        # Continue with next file instead of stopping
     fi
 done
 
-echo "All PDFs uploaded successfully."
+echo "All PDFs uploaded."

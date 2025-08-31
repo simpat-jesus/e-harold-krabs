@@ -9,15 +9,17 @@ from contextlib import asynccontextmanager
 from config import engine
 from db.models import Base
 from api.routes import router
+from utils.secure_logging import setup_secure_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure secure logging (replaces basic logging)
+logger = setup_secure_logging()
 
 limiter = Limiter(key_func=get_remote_address)
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+# ... existing code ...
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,9 +28,9 @@ async def lifespan(app: FastAPI):
     if os.getenv("TESTING") != "true":
         try:
             Base.metadata.create_all(bind=engine)
-            logger.info("Database tables verified/created on startup")
+            logger.info("Database tables and indexes created/verified on startup")
         except Exception as e:
-            logger.warning(f"Could not create tables on startup: {e}")
+            logger.warning(f"Could not create tables/indexes on startup: {e}")
     
     yield
     
